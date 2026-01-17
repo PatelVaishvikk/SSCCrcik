@@ -1,0 +1,80 @@
+.hero {
+  padding: 70px 0 40px;
+}
+
+.heroTitle {
+  font-size: clamp(2.4rem, 4vw, 3.4rem);
+}
+
+.hubGrid {
+  display: grid;
+  gap: 20px;
+}
+
+@media (min-width: 1000px) {
+  .hubGrid {
+    grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
+  }
+}
+
+.selectorCard {
+  display: grid;
+  gap: 18px;
+  align-content: start;
+}
+
+.cardHeader {
+  display: grid;
+  gap: 6px;
+}
+
+.cardTitle {
+  margin: 0;
+}
+
+.cardText {
+  margin: 0;
+  color: var(--muted);
+}
+
+.yearRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.summaryGrid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+}
+
+.actionGrid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.actionCard {
+  display: grid;
+  gap: 10px;
+  min-height: 180px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.actionCard:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow);
+}
+
+.actionTitle {
+  font-size: 1.1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-family: var(--font-display), sans-serif;
+}
+
+.actionActive {
+  border-color: rgba(0, 163, 155, 0.6);
+  box-shadow: 0 0 0 2px rgba(0, 163, 155, 0.15);
+}

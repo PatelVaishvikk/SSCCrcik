@@ -1,0 +1,45 @@
+.hero {
+  padding: 60px 0 32px;
+}
+
+.heroTitle {
+  font-size: clamp(2.1rem, 3.8vw, 3.1rem);
+}
+
+.boardSection {
+  padding: 36px 0;
+  border-top: 1px solid var(--line);
+  content-visibility: auto;
+  contain-intrinsic-size: 620px;
+}
+
+.boardHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.boardGrid {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.sectionAnchor {
+  scroll-margin-top: 120px;
+}
+
+.detailsBlock {
+  margin-top: 12px;
+}
+
+.detailsBlock summary {
+  cursor: pointer;
+  font-weight: 600;
+  list-style: none;
+}
+
+.detailsBlock summary::-webkit-details-marker {
+  display: none;
+}

@@ -1,0 +1,108 @@
+.overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.85);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    padding: 20px;
+}
+
+.modal {
+    background: #1e293b;
+    width: min(500px, 100%);
+    border-radius: 24px;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    color: #fff;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.title {
+    font-size: 1.25rem;
+    font-weight: 700;
+}
+
+.closeButton {
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: 4px;
+}
+
+.chartSection {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.chartHeader {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.chart {
+    background: #0f172a;
+    border-radius: 12px;
+    padding: 16px;
+    border: 1px solid #334155;
+    height: 180px;
+    width: 100%;
+    display: flex;
+    align-items: flex-end;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Manhattan Chart */
+.barLabel {
+    fill: #fff;
+    font-size: 10px;
+    text-anchor: middle;
+}
+
+.bar {
+    fill: #3b82f6;
+    rx: 2px;
+}
+
+.axisLine {
+    stroke: #334155;
+    stroke-width: 1;
+}
+
+/* Worm Chart */
+.wormLine {
+    fill: none;
+    stroke: #3b82f6;
+    stroke-width: 2.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.targetLine {
+    fill: none;
+    stroke: #64748b;
+    stroke-width: 2;
+    stroke-dasharray: 4 4;
+}
+
+.gridLine {
+    stroke: #1e293b;
+    stroke-width: 1;
+}

@@ -1,0 +1,395 @@
+.console {
+  display: grid;
+  gap: 24px;
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.kicker {
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+
+.title {
+  font-size: clamp(1.8rem, 2.6vw, 2.4rem);
+  margin: 0;
+}
+
+.subtitle {
+  margin: 0;
+  color: var(--muted);
+  max-width: 560px;
+}
+
+.statusRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.statusBadge {
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(0, 163, 155, 0.16);
+  color: var(--accent-2);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.statusMeta {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.alert {
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(255, 123, 41, 0.15);
+  border: 1px solid rgba(255, 123, 41, 0.35);
+  color: var(--ink-soft);
+}
+
+.grid {
+  display: grid;
+  gap: 20px;
+}
+
+@media (min-width: 1000px) {
+  .grid {
+    grid-template-columns: minmax(320px, 360px) minmax(0, 1fr);
+  }
+}
+
+.rightColumn {
+  display: grid;
+  gap: 20px;
+}
+
+.cardHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cardHint {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.fieldRow {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.label {
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+
+.select,
+.input {
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: #fff;
+  font-size: 0.95rem;
+  color: var(--ink);
+}
+
+.inlineControls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(52px, 1fr));
+  gap: 8px;
+}
+
+.toggleButton {
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: #fff;
+  padding: 8px 10px;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
+.toggleActive {
+  border-color: rgba(0, 163, 155, 0.7);
+  background: rgba(0, 163, 155, 0.12);
+  color: var(--accent-2);
+}
+
+.swapButton {
+  margin-top: 6px;
+  align-self: start;
+  justify-self: start;
+  border-radius: 10px;
+  border: 1px dashed rgba(0, 163, 155, 0.4);
+  background: rgba(0, 163, 155, 0.08);
+  padding: 6px 10px;
+  color: var(--accent-2);
+  font-weight: 600;
+}
+
+.scoreCard {
+  position: relative;
+  overflow: hidden;
+}
+
+.scoreCard::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(120deg, rgba(0, 163, 155, 0.12), rgba(255, 123, 41, 0.12));
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.scoreCard > * {
+  position: relative;
+}
+
+.scoreHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.scoreValue {
+  font-size: clamp(2.2rem, 4vw, 3rem);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.scoreMeta {
+  display: grid;
+  gap: 4px;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.playerRow {
+  display: grid;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+@media (min-width: 860px) {
+  .playerRow {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.playerLabel {
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 0.68rem;
+  color: var(--muted);
+}
+
+.playerMeta {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.lastBallsSection {
+  margin-top: 18px;
+  display: grid;
+  gap: 10px;
+}
+
+.ballStrip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ballChip {
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(11, 21, 35, 0.08);
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.ballWicket {
+  background: rgba(255, 123, 41, 0.18);
+  color: var(--accent);
+}
+
+.ballEmpty {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.scoreActions {
+  margin-top: 16px;
+}
+
+.rosterCard {
+  display: grid;
+  gap: 12px;
+}
+
+.controlDock {
+  position: sticky;
+  bottom: 18px;
+  padding: 16px;
+  border-radius: 20px;
+  border: 1px solid rgba(11, 21, 35, 0.12);
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(12px);
+  display: grid;
+  gap: 12px;
+}
+
+.runGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.runButton {
+  min-height: 56px;
+  border-radius: 16px;
+  border: none;
+  font-weight: 700;
+  font-size: 1.2rem;
+  color: var(--ink);
+  background: linear-gradient(150deg, #ffffff, rgba(0, 163, 155, 0.2));
+  box-shadow: var(--shadow-soft);
+}
+
+.runButton:disabled,
+.actionButton:disabled,
+.undoButton:disabled,
+.secondaryButton:disabled,
+.primaryButton:disabled,
+.toggleButton:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.actionRow {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.actionButton {
+  min-height: 48px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: #fff;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
+.undoButton {
+  min-height: 48px;
+  border-radius: 12px;
+  border: none;
+  background: linear-gradient(135deg, var(--accent), #ff9b57);
+  color: #fff;
+  font-weight: 700;
+}
+
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(11, 21, 35, 0.6);
+  padding: 20px;
+  z-index: 60;
+}
+
+.modal {
+  width: min(92vw, 560px);
+  background: var(--panel);
+  border-radius: 22px;
+  padding: 20px;
+  display: grid;
+  gap: 16px;
+  box-shadow: var(--shadow);
+}
+
+.modalHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.closeButton {
+  border: none;
+  background: none;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.optionGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 12px;
+}
+
+.optionButton {
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  padding: 12px;
+  background: #fff;
+  display: grid;
+  gap: 4px;
+  text-align: left;
+  font-weight: 600;
+}
+
+.optionActive {
+  border-color: rgba(0, 163, 155, 0.7);
+  box-shadow: 0 0 0 2px rgba(0, 163, 155, 0.2);
+}
+
+.optionHint {
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.modalActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.primaryButton {
+  border-radius: 12px;
+  border: none;
+  background: var(--accent-2);
+  color: #fff;
+  padding: 10px 16px;
+  font-weight: 700;
+}
+
+.secondaryButton {
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--ink-soft);
+  padding: 10px 16px;
+  font-weight: 600;
+}

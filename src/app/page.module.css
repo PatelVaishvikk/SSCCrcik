@@ -1,0 +1,78 @@
+.hero {
+  padding: 32px 0 12px;
+}
+
+.heroTitle {
+  font-size: clamp(2.2rem, 3.6vw, 3.4rem);
+}
+
+.dashboard {
+  display: grid;
+  gap: 24px;
+  grid-template-columns: 1.6fr 1fr;
+}
+
+.panel {
+  display: grid;
+  gap: 16px;
+}
+
+.panelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.scoreList {
+  display: grid;
+  gap: 12px;
+}
+
+.scoreItem {
+  display: grid;
+  gap: 8px;
+  padding: 16px;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.scoreTeams {
+  display: flex;
+  justify-content: space-between;
+  font-weight: 600;
+}
+
+.scoreMeta {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.actionGrid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.actionCard {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.leaderSpotlight {
+  display: grid;
+  gap: 12px;
+}
+
+.yearGrid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+}
+
+@media (max-width: 1000px) {
+  .dashboard {
+    grid-template-columns: 1fr;
+  }
+}

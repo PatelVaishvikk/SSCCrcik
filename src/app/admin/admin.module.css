@@ -1,0 +1,233 @@
+.hero {
+  padding: 36px 0 14px;
+}
+
+.heroTitle {
+  font-size: clamp(2.4rem, 4vw, 3.8rem);
+}
+
+.heroText {
+  max-width: 640px;
+  color: var(--ink-soft);
+}
+
+.heroActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.resumeCard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-top: 22px;
+}
+
+.resumeCopy {
+  display: grid;
+  gap: 6px;
+}
+
+.resumeTitle {
+  font-size: 1.3rem;
+}
+
+.resumeMeta {
+  font-size: 0.9rem;
+}
+
+.resumeActions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.dashboard {
+  display: grid;
+  gap: 24px;
+  grid-template-columns: 1.4fr 1fr;
+}
+
+.stack {
+  display: grid;
+  gap: 20px;
+}
+
+.actionGrid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.actionCard {
+  display: grid;
+  gap: 8px;
+  min-height: 160px;
+}
+
+.actionTitle {
+  font-family: var(--font-display), sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 1.05rem;
+}
+
+.statGrid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+}
+
+.matchTeams {
+  display: flex;
+  justify-content: space-between;
+  font-weight: 600;
+}
+
+.builderGrid {
+  display: grid;
+  gap: 24px;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+}
+
+.noteList {
+  display: grid;
+  gap: 10px;
+  color: var(--ink-soft);
+}
+
+.linkRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.flowBar {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  margin-top: 18px;
+}
+
+.flowStep {
+  display: grid;
+  gap: 6px;
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.85);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.flowStep:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-soft);
+}
+
+.flowActive {
+  background: #0b1523;
+  color: #f6f8fb;
+  border-color: transparent;
+}
+
+.flowBadge {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--accent-2);
+}
+
+.flowActive .flowBadge {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.flowLabel {
+  font-family: var(--font-display), sans-serif;
+  font-size: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.flowMeta {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.flowActive .flowMeta {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.authShell {
+  display: grid;
+  gap: 24px;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+}
+
+.authCard {
+  display: grid;
+  gap: 16px;
+}
+
+.authTabs {
+  display: flex;
+  gap: 12px;
+}
+
+.authTab {
+  flex: 1;
+  padding: 10px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.7);
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+}
+
+.authTabActive {
+  background: #0b1523;
+  color: #f6f8fb;
+  border-color: transparent;
+}
+
+.authForm {
+  display: grid;
+  gap: 12px;
+}
+
+.authError {
+  color: #b60f0f;
+  font-size: 0.85rem;
+}
+
+.authSuccess {
+  color: #0f7a3e;
+  font-size: 0.85rem;
+}
+
+@media (max-width: 1000px) {
+  .authShell {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 1000px) {
+  .dashboard {
+    grid-template-columns: 1fr;
+  }
+
+  .builderGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .resumeCard {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

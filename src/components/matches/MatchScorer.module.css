@@ -1,0 +1,323 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding-bottom: 120px;
+}
+
+.syncBanner {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: #fff7e0;
+  border: 1px solid #f2e2b8;
+  color: #5f4a1f;
+  font-size: 0.85rem;
+}
+
+.syncBanner button {
+  border: none;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 0.8rem;
+  background: #000;
+  color: #fbbf24;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.syncBanner button:hover {
+  background: #275238;
+}
+
+.header {
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+  color: #f8fafc;
+  border-radius: 24px;
+  padding: 24px;
+  box-shadow: 0 20px 40px -8px rgba(15, 23, 42, 0.4);
+  position: relative;
+  overflow: hidden;
+}
+
+.scoreLine {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.score {
+  font-size: 2.4rem;
+  font-weight: 700;
+}
+
+.overs {
+  font-size: 1rem;
+  opacity: 0.8;
+}
+
+.metaLine {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 6px;
+  font-size: 0.95rem;
+  opacity: 0.8;
+}
+
+.teamLine {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.9rem;
+  margin-top: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.status {
+  margin-top: 10px;
+  font-size: 0.9rem;
+  color: #9be7c4;
+}
+
+.players {
+  display: grid;
+  gap: 12px;
+}
+
+.playerCard {
+  background: #fff;
+  border-radius: 16px;
+  padding: 14px 16px;
+  box-shadow: 0 10px 24px rgba(13, 28, 18, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.playerLabel {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: #5c6b62;
+}
+
+.playerMeta {
+  font-size: 0.9rem;
+  color: #56635a;
+}
+
+.overStrip {
+  background: #f4f6f4;
+  border-radius: 16px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.overLabel {
+  font-size: 0.8rem;
+  color: #6c7a71;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.ballRow {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ballChip {
+  min-width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: #ffffff;
+  border: 1px solid #dfe5e1;
+  font-weight: 600;
+}
+
+.ballWicket {
+  background: #d84832;
+  color: #fff;
+  border-color: #d84832;
+}
+
+.ballEmpty {
+  color: #9aa7a0;
+  font-size: 0.9rem;
+}
+
+.actions {
+  position: sticky;
+  bottom: 0;
+  background: #fefefe;
+  border-top: 1px solid #e2e7e4;
+  padding: 16px;
+  border-radius: 18px 18px 0 0;
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.08);
+}
+
+.runGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.runButton {
+  height: 64px;
+  font-size: 1.25rem;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: #ffffff;
+  color: #1e293b;
+  font-weight: 800;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  transition: all 0.1s active;
+}
+
+.runButton:active {
+  transform: translateY(2px);
+  box-shadow: none;
+}
+
+.runButton:disabled {
+  opacity: 0.4;
+}
+
+.actionRow {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.actionButton {
+  height: 46px;
+  border-radius: 12px;
+  border: 1px solid #cfd8d2;
+  background: #fff;
+  font-weight: 600;
+}
+
+.actionButton:disabled {
+  opacity: 0.5;
+}
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 16, 12, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 50;
+}
+
+.modal {
+  width: min(520px, 100%);
+  background: #fff;
+  border-radius: 18px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.modal select,
+.modal input,
+.startGrid select {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid #d7e0db;
+  background: #fff;
+}
+
+.modalRow {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.label {
+  font-size: 0.8rem;
+  color: #5e6a62;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.listGrid {
+  display: grid;
+  gap: 8px;
+}
+
+.listButton {
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid #d7e0db;
+  background: #f7f9f8;
+  text-align: left;
+  font-weight: 600;
+}
+
+.toggleRow {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.toggleRow button {
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid #d5ded9;
+  background: #f2f6f3;
+}
+
+.toggleActive {
+  background: #0f7a4a;
+  color: #fff;
+  border-color: #0f7a4a;
+}
+
+.checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+}
+
+.startGrid {
+  display: grid;
+  gap: 12px;
+}
+
+@media (min-width: 900px) {
+  .players {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .runGrid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}
+
+.partnershipMeta {
+  display: flex;
+  flex-direction: column;
+  color: #64748b;
+  font-size: 0.9rem;
+  gap: 2px;
+}
+
+.partnershipMeta strong {
+  color: #0f172a;
+  font-size: 1.1rem;
+}

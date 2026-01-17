@@ -1,0 +1,16 @@
+.hero {
+  padding: 32px 0 12px;
+}
+
+.heroTitle {
+  font-size: clamp(2.2rem, 3.8vw, 3.4rem);
+}
+
+.heroText {
+  max-width: 640px;
+  color: var(--ink-soft);
+}
+
+.linkRow {
+  margin-top: 20px;
+}

@@ -1,0 +1,91 @@
+.overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.85);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    padding: 20px;
+}
+
+.modal {
+    background: #1e293b;
+    width: min(400px, 100%);
+    border-radius: 24px;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    color: #fff;
+    align-items: center;
+}
+
+.title {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.fieldContainer {
+    position: relative;
+    width: 300px;
+    height: 300px;
+    border-radius: 50%;
+    background: radial-gradient(circle, #4ade80 20%, #22c55e 60%, #16a34a 100%);
+    border: 4px solid #fff;
+    box-shadow: 0 0 40px rgba(34, 197, 94, 0.2);
+    cursor: crosshair;
+    overflow: hidden;
+}
+
+/* Pitch area */
+.pitch {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 40px;
+    height: 80px;
+    background: #eab308;
+    transform: translate(-50%, -50%);
+    border-radius: 4px;
+    opacity: 0.8;
+}
+
+/* Inner circle (30 yard) */
+.innerCircle {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 140px;
+    height: 140px;
+    border: 1px dashed rgba(255, 255, 255, 0.5);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+}
+
+.actions {
+    display: flex;
+    gap: 12px;
+    width: 100%;
+}
+
+.actionButton {
+    flex: 1;
+    padding: 14px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: transparent;
+    color: #fff;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.confirmButton {
+    background: #22c55e;
+    border-color: #22c55e;
+    color: #052e16;
+}

@@ -1,0 +1,26 @@
+.hero {
+  padding: 70px 0 40px;
+}
+
+.heroTitle {
+  font-size: clamp(2.4rem, 4vw, 3.4rem);
+}
+
+.yearGrid {
+  display: grid;
+  gap: 20px;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.yearCard {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.yearMeta {
+  display: flex;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 0.85rem;
+}

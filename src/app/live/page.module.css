@@ -1,0 +1,12 @@
+.hero {
+  padding: 32px 0 12px;
+}
+
+.heroTitle {
+  font-size: clamp(2.3rem, 4vw, 3.6rem);
+}
+
+.heroText {
+  max-width: 640px;
+  color: var(--ink-soft);
+}
