@@ -20,6 +20,46 @@ type LiveMatch = {
     balls_remaining: number | null;
     required_rate: string | null;
     runsPerOver?: number[];
+    // Enhanced analytics
+    winProbability?: {
+      battingTeam: number;
+      bowlingTeam: number;
+      confidence: "high" | "medium" | "low";
+    };
+    pressureIndex?: {
+      value: number;
+      level: "low" | "moderate" | "high" | "extreme";
+      factors: string[];
+    };
+    momentum?: {
+      direction: "batting" | "bowling" | "neutral";
+      strength: number;
+      trend: "rising" | "falling" | "stable";
+    };
+    projectedScoreEnhanced?: {
+      conservative: number;
+      predicted: number;
+      aggressive: number;
+      confidence: number;
+    };
+    phaseAnalysis?: {
+      powerplay: { runs: number; wickets: number; balls: number; runRate: string };
+      middle: { runs: number; wickets: number; balls: number; runRate: string };
+      death: { runs: number; wickets: number; balls: number; runRate: string };
+      currentPhase: "powerplay" | "middle" | "death";
+    };
+    dotBallPercent?: number;
+    boundaryPercent?: number;
+    runRateComparison?: {
+      current: string;
+      required: string | null;
+      difference: string | null;
+    };
+    scoringAreas?: {
+      offSide: number;
+      onSide: number;
+      straight: number;
+    };
   };
   batting: {
     team_name: string;
@@ -284,6 +324,172 @@ export default function LiveScoreboard({ matchId }: { matchId: string }) {
                   <span className="stat-label">Overs remaining</span>
                 </div>
               </>
+            )}
+          </div>
+        ) : null}
+
+        {/* Enhanced Analytics Section */}
+        {match.analysis?.winProbability ? (
+          <div style={{ 
+            marginTop: '12px', 
+            padding: '12px', 
+            background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)', 
+            borderRadius: '12px',
+            color: 'white'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+              <span style={{ fontSize: '0.75rem', opacity: 0.8 }}>🎯 Win Probability</span>
+              <span style={{ 
+                fontSize: '0.65rem', 
+                padding: '2px 6px', 
+                background: 'rgba(255,255,255,0.1)', 
+                borderRadius: '8px' 
+              }}>
+                {match.analysis.winProbability.confidence} confidence
+              </span>
+            </div>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: '4px' }}>
+                  <span>{match.batting.team_name}</span>
+                  <span style={{ fontWeight: 'bold', color: '#4ade80' }}>{match.analysis.winProbability.battingTeam}%</span>
+                </div>
+                <div style={{ 
+                  height: '8px', 
+                  background: 'rgba(255,255,255,0.2)', 
+                  borderRadius: '4px',
+                  overflow: 'hidden'
+                }}>
+                  <div style={{ 
+                    height: '100%', 
+                    width: `${match.analysis.winProbability.battingTeam}%`,
+                    background: 'linear-gradient(90deg, #4ade80, #22c55e)',
+                    borderRadius: '4px',
+                    transition: 'width 0.5s ease'
+                  }} />
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {match.analysis?.pressureIndex ? (
+          <div style={{ 
+            marginTop: '8px', 
+            display: 'flex', 
+            justifyContent: 'space-between',
+            padding: '8px 12px',
+            background: match.analysis.pressureIndex.level === 'extreme' ? 'rgba(239, 68, 68, 0.1)' :
+                        match.analysis.pressureIndex.level === 'high' ? 'rgba(251, 146, 60, 0.1)' :
+                        'rgba(75, 85, 99, 0.1)',
+            borderRadius: '8px',
+            borderLeft: `3px solid ${
+              match.analysis.pressureIndex.level === 'extreme' ? '#ef4444' :
+              match.analysis.pressureIndex.level === 'high' ? '#fb923c' :
+              match.analysis.pressureIndex.level === 'moderate' ? '#fbbf24' : '#4b5563'
+            }`
+          }}>
+            <div>
+              <span style={{ fontSize: '0.7rem', color: '#6b7280' }}>Pressure Index</span>
+              <div style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>
+                {match.analysis.pressureIndex.value}
+                <span style={{ fontSize: '0.7rem', fontWeight: 'normal', marginLeft: '4px', textTransform: 'capitalize' }}>
+                  ({match.analysis.pressureIndex.level})
+                </span>
+              </div>
+            </div>
+            {match.analysis.momentum && (
+              <div style={{ textAlign: 'right' }}>
+                <span style={{ fontSize: '0.7rem', color: '#6b7280' }}>Momentum</span>
+                <div style={{ fontWeight: 'bold', fontSize: '0.9rem' }}>
+                  {match.analysis.momentum.direction === 'batting' ? '🟢 Batting' :
+                   match.analysis.momentum.direction === 'bowling' ? '🔴 Bowling' : '⚪ Neutral'}
+                  <span style={{ fontSize: '0.7rem', fontWeight: 'normal', marginLeft: '4px' }}>
+                    {match.analysis.momentum.trend === 'rising' ? '↑' :
+                     match.analysis.momentum.trend === 'falling' ? '↓' : '→'}
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+        ) : null}
+
+        {match.analysis?.phaseAnalysis ? (
+          <div style={{ 
+            marginTop: '8px', 
+            display: 'grid', 
+            gridTemplateColumns: 'repeat(3, 1fr)', 
+            gap: '8px', 
+            fontSize: '0.7rem' 
+          }}>
+            {(['powerplay', 'middle', 'death'] as const).map((phase) => {
+              const data = match.analysis?.phaseAnalysis?.[phase];
+              const isCurrent = match.analysis?.phaseAnalysis?.currentPhase === phase;
+              return (
+                <div 
+                  key={phase} 
+                  style={{ 
+                    padding: '6px 8px', 
+                    background: isCurrent ? 'rgba(59, 130, 246, 0.1)' : 'rgba(0,0,0,0.03)',
+                    borderRadius: '6px',
+                    border: isCurrent ? '1px solid rgba(59, 130, 246, 0.3)' : '1px solid transparent'
+                  }}
+                >
+                  <div style={{ fontWeight: 'bold', textTransform: 'capitalize', marginBottom: '2px' }}>
+                    {phase} {isCurrent && '●'}
+                  </div>
+                  <div>{data?.runs ?? 0}/{data?.wickets ?? 0}</div>
+                  <div style={{ color: '#6b7280' }}>RR: {data?.runRate ?? '0.00'}</div>
+                </div>
+              );
+            })}
+          </div>
+        ) : null}
+
+        {(match.analysis?.dotBallPercent !== undefined || match.analysis?.boundaryPercent !== undefined) ? (
+          <div style={{ 
+            marginTop: '8px', 
+            display: 'flex', 
+            gap: '8px',
+            fontSize: '0.75rem'
+          }}>
+            {match.analysis?.dotBallPercent !== undefined && (
+              <div style={{ 
+                flex: 1, 
+                padding: '6px 10px', 
+                background: 'rgba(107, 114, 128, 0.1)', 
+                borderRadius: '6px',
+                textAlign: 'center' 
+              }}>
+                <div style={{ fontWeight: 'bold' }}>{match.analysis.dotBallPercent}%</div>
+                <div style={{ color: '#6b7280', fontSize: '0.65rem' }}>Dot Balls</div>
+              </div>
+            )}
+            {match.analysis?.boundaryPercent !== undefined && (
+              <div style={{ 
+                flex: 1, 
+                padding: '6px 10px', 
+                background: 'rgba(16, 185, 129, 0.1)', 
+                borderRadius: '6px',
+                textAlign: 'center' 
+              }}>
+                <div style={{ fontWeight: 'bold', color: '#10b981' }}>{match.analysis.boundaryPercent}%</div>
+                <div style={{ color: '#6b7280', fontSize: '0.65rem' }}>Boundaries</div>
+              </div>
+            )}
+            {match.analysis?.scoringAreas && (
+              <div style={{ 
+                flex: 1, 
+                padding: '6px 10px', 
+                background: 'rgba(59, 130, 246, 0.1)', 
+                borderRadius: '6px',
+                textAlign: 'center' 
+              }}>
+                <div style={{ fontWeight: 'bold', color: '#3b82f6' }}>
+                  {match.analysis.scoringAreas.offSide}% / {match.analysis.scoringAreas.onSide}%
+                </div>
+                <div style={{ color: '#6b7280', fontSize: '0.65rem' }}>Off / On Side</div>
+              </div>
             )}
           </div>
         ) : null}

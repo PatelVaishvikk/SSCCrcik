@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { getDb } from "@/lib/mongo";
 import { isLegalDelivery, type ScoringPayload } from "@/lib/scoring/engine";
+import { computeLiveAnalytics, type LiveAnalytics } from "@/lib/scoring/v2/analytics";
+import { computeShotAnalysis, type ShotAnalysis } from "@/lib/scoring/v2/shot-tracker";
+import { getPlayersPerSide } from "@/lib/scoring/v2/engine";
+import { getMatchConfig } from "@/lib/scoring/v2/match";
+import type { BallSummary } from "@/lib/scoring/v2/types";
 
 export const dynamic = "force-dynamic";
 
@@ -212,13 +217,15 @@ function buildAnalysis(
   innings: Record<string, any>,
   allInnings: Array<Record<string, any>>,
   inningsIndex: number,
-  oversLimit: number | null
+  oversLimit: number | null,
+  wicketsLimit: number | null
 ) {
   const events = Array.isArray(innings.events) ? innings.events : [];
   const lastSix = summarizeLastBalls(events, 6);
   const maxBalls = oversLimit ? oversLimit * 6 : null;
   const inningsRuns = Number(innings.runs || 0);
   const inningsBalls = Number(innings.balls || 0);
+  const inningsWickets = Number(innings.wickets || 0);
   const projectedScore =
     maxBalls && inningsBalls > 0 ? Math.round((inningsRuns / inningsBalls) * maxBalls) : null;
   const previous = inningsIndex > 0 ? allInnings[inningsIndex - 1] : null;
@@ -234,7 +241,44 @@ function buildAnalysis(
         ? "0.00"
         : null;
 
+  // Convert events to BallSummary format for analytics
+  const ballSummaries: BallSummary[] = events.map((e: any, i: number) => ({
+    seq: i,
+    over: Math.floor(i / 6),
+    ballInOver: (i % 6) + 1,
+    label: e.wicket ? "W" : String(e.runs || 0),
+    isLegal: e.legalBall !== false,
+    isWicket: Boolean(e.wicket),
+    totalRuns: Number(e.runs || 0),
+    extraType: e.extra_type || undefined,
+    shotX: e.shotX,
+    shotY: e.shotY,
+    shotType: e.shotType,
+  }));
+
+  // Compute live analytics
+  const liveAnalytics = computeLiveAnalytics({
+    runs: inningsRuns,
+    wickets: inningsWickets,
+    balls: inningsBalls,
+    target: targetRuns,
+    totalOvers: oversLimit || 20,
+    isSecondInnings: inningsIndex > 0,
+    recentBalls: ballSummaries.slice(-12),
+    allBalls: ballSummaries,
+    runsPerOver: innings.runsPerOver || [],
+    wicketsLimit: wicketsLimit ?? undefined,
+  });
+
+  // Compute shot analysis
+  const shotAnalysis = computeShotAnalysis(
+    ballSummaries,
+    innings.runsPerOver || [],
+    inningsRuns
+  );
+
   return {
+    // Legacy fields
     runsPerOver: innings.runsPerOver || [],
     overs_limit: oversLimit,
     projected_score: projectedScore,
@@ -243,6 +287,22 @@ function buildAnalysis(
     runs_needed: runsNeeded,
     balls_remaining: ballsRemaining,
     required_rate: requiredRate,
+
+    // Enhanced analytics
+    winProbability: liveAnalytics.winProbability,
+    pressureIndex: liveAnalytics.pressureIndex,
+    momentum: liveAnalytics.momentum,
+    projectedScoreEnhanced: liveAnalytics.projectedScore,
+    phaseAnalysis: liveAnalytics.phaseAnalysis,
+    dotBallPercent: liveAnalytics.dotBallPercent,
+    boundaryPercent: liveAnalytics.boundaryPercent,
+    runRateComparison: liveAnalytics.runRateComparison,
+
+    // Shot tracking
+    wagonWheel: shotAnalysis.wagonWheel,
+    hotZones: shotAnalysis.hotZones,
+    boundaries: shotAnalysis.boundaries,
+    scoringAreas: shotAnalysis.scoringAreas,
   };
 }
 
@@ -450,6 +510,11 @@ export async function GET(
 
     const oversLimitRaw = Number(snapshot.oversLimit ?? match?.overs ?? 0);
     const oversLimit = oversLimitRaw > 0 ? oversLimitRaw : null;
+    const matchConfig = match ? getMatchConfig(match as any) : null;
+    const playersPerSide = matchConfig
+      ? getPlayersPerSide(matchConfig, snapshot.battingTeamId)
+      : null;
+    const wicketsLimit = playersPerSide && playersPerSide > 1 ? playersPerSide - 1 : null;
     const inningsData = {
       runs: snapshot.runs,
       balls: snapshot.balls,
@@ -460,7 +525,8 @@ export async function GET(
       inningsData,
       previousInnings ? [previousInnings, inningsData] : [inningsData],
       previousInnings ? 1 : 0,
-      oversLimit
+      oversLimit,
+      wicketsLimit
     );
 
     const { battingTeamId, bowlingTeamId } = resolveTeamAssignments(
@@ -565,11 +631,17 @@ export async function GET(
     innings.overs || liveDoc.overs || match?.overs || 0
   );
   const oversLimit = oversLimitRaw > 0 ? oversLimitRaw : null;
+  const matchConfig = match ? getMatchConfig(match as any) : null;
+  const playersPerSide = matchConfig
+    ? getPlayersPerSide(matchConfig, innings.batting_team_id)
+    : null;
+  const wicketsLimit = playersPerSide && playersPerSide > 1 ? playersPerSide - 1 : null;
   const analysis = buildAnalysis(
     innings,
     Array.isArray(liveDoc.innings) ? liveDoc.innings : [],
     inningsIndex,
-    oversLimit
+    oversLimit,
+    wicketsLimit
   );
 
   const payload = {

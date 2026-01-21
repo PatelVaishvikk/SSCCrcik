@@ -13,6 +13,9 @@ export type MatchDoc = {
   squad_a_ids?: string[];
   squad_b_ids?: string[];
   settings?: MatchSettings;
+  innings1_batting_team_id?: string | null;
+  innings1_bowling_team_id?: string | null;
+  current_innings?: number | null;
 };
 
 export async function getMatchDoc(db: Db, matchId: string) {
@@ -23,13 +26,25 @@ export async function getMatchDoc(db: Db, matchId: string) {
 
 export function getMatchConfig(match: MatchDoc): MatchConfig {
   const settings: MatchSettings = match.settings || {};
+
+  const sizeA = match.squad_a_ids?.length || 0;
+  const sizeB = match.squad_b_ids?.length || 0;
+
+  const impliedA = sizeA > 11 ? 11 : (sizeA || 11);
+  const impliedB = sizeB > 11 ? 11 : (sizeB || 11);
+
   return {
     overs: Number(match.overs || 0),
     settings: {
       noConsecutiveBowler: Boolean(settings.noConsecutiveBowler),
       countWideAsBall: Boolean(settings.countWideAsBall),
       countNoBallAsBall: Boolean(settings.countNoBallAsBall),
+      playersPerSide: settings.playersPerSide,
     },
+    teamAId: match.team_a_id,
+    teamBId: match.team_b_id,
+    playersPerSideA: settings.playersPerSide || impliedA,
+    playersPerSideB: settings.playersPerSide || impliedB,
   };
 }
 

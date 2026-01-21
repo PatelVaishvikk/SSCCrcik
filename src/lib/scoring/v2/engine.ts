@@ -8,6 +8,7 @@ import type {
   ScoreEventPayload,
   ScoreEventType,
 } from "@/lib/scoring/v2/types";
+import { generateAutoCommentary } from "@/lib/scoring/v2/commentary";
 
 const ILLEGAL_EXTRAS = new Set(["WD", "NB", "PEN"]);
 const NON_BOWLER_EXTRAS = new Set(["B", "LB", "PEN"]);
@@ -164,16 +165,115 @@ function buildCommentaryEntry(event: ScoreEvent, summary: BallSummary): Commenta
   return { seq: event.seq, text: `${summary.label} runs`, type: "RUN", timestamp };
 }
 
+const COMPUTED_RESULT_REASONS = new Set(["manual", "target_chased", "all_out", "overs_complete"]);
+
+function normalizeReason(reason?: string | null) {
+  const normalized = String(reason || "").trim().toLowerCase();
+  return normalized || "";
+}
+
+function shouldComputeMatchResult(reason?: string | null) {
+  const normalized = normalizeReason(reason);
+  if (!normalized) return true;
+  return COMPUTED_RESULT_REASONS.has(normalized);
+}
+
+function humanizeReason(reason: string) {
+  const normalized = reason.replace(/_/g, " ").trim();
+  if (!normalized) return "";
+  return `${normalized.charAt(0).toUpperCase()}${normalized.slice(1)}`;
+}
+
+type MatchOutcome = {
+  winnerId: string | null;
+  winType: "runs" | "wickets" | "tie";
+  winMargin: number | null;
+  matchResult: string;
+};
+
+function resolveMatchOutcome(snapshot: MatchSnapshot, config: MatchConfig): MatchOutcome | null {
+  const hasPrevious = Boolean(snapshot.previousInnings);
+  if (!hasPrevious && (snapshot.target === null || snapshot.target === undefined)) {
+    return null;
+  }
+  const team1Score = Number(snapshot.previousInnings?.runs ?? 0);
+  const team2Score = Number(snapshot.runs ?? 0);
+  const target =
+    snapshot.target && snapshot.target > 0 ? snapshot.target : hasPrevious ? team1Score + 1 : null;
+  const playersPerSide = getPlayersPerSide(config, snapshot.battingTeamId);
+  const wicketsLimit = Math.max(playersPerSide - 1, 0);
+
+  if (target !== null) {
+    if (team2Score >= target) {
+      const remainingWickets = Math.max(0, wicketsLimit - snapshot.wickets);
+      return {
+        winnerId: snapshot.battingTeamId || null,
+        winType: "wickets",
+        winMargin: remainingWickets,
+        matchResult: `Won by ${remainingWickets} wickets`,
+      };
+    }
+    if (team2Score === target - 1) {
+      return {
+        winnerId: null,
+        winType: "tie",
+        winMargin: null,
+        matchResult: "Match Tied",
+      };
+    }
+    const marginRuns = Math.max(0, (target - 1) - team2Score);
+    return {
+      winnerId: snapshot.bowlingTeamId || null,
+      winType: "runs",
+      winMargin: marginRuns,
+      matchResult: `Won by ${marginRuns} runs`,
+    };
+  }
+
+  if (hasPrevious) {
+    if (team2Score > team1Score) {
+      const remainingWickets = Math.max(0, wicketsLimit - snapshot.wickets);
+      return {
+        winnerId: snapshot.battingTeamId || null,
+        winType: "wickets",
+        winMargin: remainingWickets,
+        matchResult: `Won by ${remainingWickets} wickets`,
+      };
+    }
+    if (team2Score === team1Score) {
+      return {
+        winnerId: null,
+        winType: "tie",
+        winMargin: null,
+        matchResult: "Match Tied",
+      };
+    }
+    const marginRuns = Math.max(0, team1Score - team2Score);
+    return {
+      winnerId: snapshot.bowlingTeamId || null,
+      winType: "runs",
+      winMargin: marginRuns,
+      matchResult: `Won by ${marginRuns} runs`,
+    };
+  }
+
+  return null;
+}
+
 export function applyEvent(params: {
   snapshot: MatchSnapshot;
   event: ScoreEvent;
   config: MatchConfig;
   scorer?: { id: string; name: string } | null;
+  playerNames?: Record<string, string>; // Injected names
 }): MatchSnapshot {
-  const { snapshot, event, config, scorer } = params;
+  const { snapshot, event, config, scorer, playerNames = {} } = params;
   const updated = cloneSnapshot(snapshot);
   updated.version = event.seq;
   if (scorer) updated.scorer = scorer;
+
+  // Helper to get name
+  const getName = (id: string | null | undefined) => (id ? playerNames[id] || "Unknown" : "Unknown");
 
   switch (event.type as ScoreEventType) {
     case "INNINGS_START": {
@@ -247,14 +347,38 @@ export function applyEvent(params: {
         }
         updated.requiredRR = null;
       } else {
+        updated.status = "COMPLETED";
         updated.pendingAction = "NONE";
+        const outcome = resolveMatchOutcome(updated, config);
+        if (outcome) {
+          updated.winnerId = outcome.winnerId;
+          updated.winType = outcome.winType;
+          updated.winMargin = outcome.winMargin;
+          updated.matchResult = outcome.matchResult;
+        }
       }
       return updated;
     }
     case "MATCH_END": {
       updated.status = "COMPLETED";
       updated.pendingAction = "NONE";
-      updated.matchResult = event.payload?.reason || updated.matchResult || null;
+      const reason = event.payload?.reason || null;
+      if (!shouldComputeMatchResult(reason)) {
+        const normalized = normalizeReason(reason);
+        updated.matchResult = humanizeReason(normalized) || updated.matchResult || null;
+        updated.winnerId = null;
+        updated.winType = null;
+        updated.winMargin = null;
+        return updated;
+      }
+
+      const outcome = resolveMatchOutcome(updated, config);
+      if (outcome) {
+        updated.winnerId = outcome.winnerId;
+        updated.winType = outcome.winType;
+        updated.winMargin = outcome.winMargin;
+        updated.matchResult = outcome.matchResult;
+      }
       return updated;
     }
     case "MATCH_LOCKED": {
@@ -296,6 +420,13 @@ export function applyEvent(params: {
       if (!strikerId || !nonStrikerId || !bowlerId) {
         throw new Error("Missing striker, non-striker, or bowler.");
       }
+
+      // Pre-update stats for commentary
+      const preStrikerLine = getBattingLine(updated, strikerId);
+      const preBowlerLine = getBowlingLine(updated, bowlerId);
+      const preTeamRuns = updated.runs;
+      const preStrikerRuns = preStrikerLine.runs;
+      const preBowlerWickets = preBowlerLine.wickets;
 
       const runsOffBat = Number(payload.runs || 0);
       const extraRuns = Number(payload.extras?.runs || 0);
@@ -350,8 +481,26 @@ export function applyEvent(params: {
       updated.currentOverBalls = [...updated.currentOverBalls, summary];
       updated.last12Balls = [...updated.last12Balls, summary].slice(-12);
 
-      const commentaryEntry: CommentaryEntry = buildCommentaryEntry(event, summary);
-      updated.commentaryTail = [...updated.commentaryTail, commentaryEntry].slice(-12);
+      // Enhanced Commentary
+      const entries = generateAutoCommentary({
+        ball: summary,
+        batterName: getName(strikerId),
+        bowlerName: getName(bowlerId),
+        dismissalType: payload.dismissal?.type,
+        previousBatterRuns: preStrikerRuns,
+        currentBatterRuns: strikerLine.runs,
+        previousBowlerWickets: preBowlerWickets,
+        currentBowlerWickets: bowlerLine.wickets,
+        previousTeamRuns: preTeamRuns,
+        currentTeamRuns: updated.runs,
+        teamName: updated.battingTeamId === updated.battingTeamId ? "Batting Team" : "Team",
+        batterId: strikerId,
+        bowlerId: bowlerId,
+        pressureLevel: "moderate", // simplified
+      });
+      // Flatten entries and ensure seq is present
+      const processedEntries = entries.map(e => ({ ...e, seq: e.seq ?? event.seq }));
+      updated.commentaryTail = [...updated.commentaryTail, ...processedEntries].slice(-12);
 
       const preStriker = strikerId;
       const preNonStriker = nonStrikerId;
@@ -376,45 +525,66 @@ export function applyEvent(params: {
         nextNonStriker = temp;
       }
 
+      // Termination Checks
+      // Termination Checks
+      const { isAllOut, isChased } = checkTermination(updated, config);
+
       if (isWicket) {
         const outId = payload.dismissal?.playerOutId || preStriker;
-        if (outId === preStriker || outId === preNonStriker) {
-          const outIsStriker = nextStriker === outId;
-          if (outIsStriker) {
-            nextStriker = "";
-            updated.pendingBatsmanSlot = "striker";
-          } else {
-            nextNonStriker = "";
-            updated.pendingBatsmanSlot = "nonStriker";
-          }
-        }
+        const outIdMatches = outId === preStriker || outId === preNonStriker;
+
         const outLine = getBattingLine(updated, outId);
         outLine.isOut = true;
-        updated.pendingAction = "SELECT_BATSMAN";
 
-        // Reset partnership on wicket
-        updated.currentPartnership = { runs: 0, balls: 0, strikerId: nextStriker, nonStrikerId: nextNonStriker };
+        if (isAllOut || isChased) {
+          // Game/Innings Over triggers
+          updated.pendingAction = "NONE";
+          // We don't auto-transition to INNINGS_END event, the user must click it, but we stop asking for batter
+          // Actually, if we set NONE, the UI shows "End Innings" button usually?
+          // Or we specifically set a status?
+          // Let's just NOT set SELECT_BATSMAN
+        } else {
+          // Normal wicket
+          if (outId === preStriker || outId === preNonStriker) {
+            const outIsStriker = nextStriker === outId;
+            if (outIsStriker) {
+              nextStriker = "";
+              updated.pendingBatsmanSlot = "striker";
+            } else {
+              nextNonStriker = "";
+              updated.pendingBatsmanSlot = "nonStriker";
+            }
+          }
+          updated.pendingAction = "SELECT_BATSMAN";
+          // Update partnership holders
+          updated.currentPartnership = { runs: 0, balls: 0, strikerId: nextStriker, nonStrikerId: nextNonStriker };
+        }
       } else {
         // Update partnership
         const partnershipRuns = totalRuns;
-        // Partnership balls: we count if it was a legal delivery
+        // Partnership balls: we count if it was a legal delivery (usually, or any ball faced)
+        // Standard is legal balls + wides? No, usually balls faced (legal + no balls). Wides don't count to balls faced for batter but do for partnership?
+        // Let's stick to balls += 1 if valid ball.
         const partnershipBalls = legalDelivery ? 1 : 0;
 
-        if (!updated.currentPartnership) {
-          updated.currentPartnership = {
-            runs: 0,
-            balls: 0,
-            strikerId: updated.strikerId || "",
-            nonStrikerId: updated.nonStrikerId || ""
-          };
-        }
-
-        // Ensure IDs are up to date if they swapped
-        updated.currentPartnership.strikerId = nextStriker;
-        updated.currentPartnership.nonStrikerId = nextNonStriker;
-        updated.currentPartnership.runs += partnershipRuns;
-        updated.currentPartnership.balls += partnershipBalls;
+        updated.currentPartnership = {
+          runs: (updated.currentPartnership?.runs || 0) + partnershipRuns,
+          balls: (updated.currentPartnership?.balls || 0) + partnershipBalls,
+          strikerId: nextStriker,
+          nonStrikerId: nextNonStriker
+        };
       }
+
+      // Check win condition for non-wicket balls too
+      if (updated.target != null && updated.target > 0 && updated.runs >= updated.target) {
+        // Win achieved!
+        updated.pendingAction = "NONE";
+        // Maybe set matchResult?
+        // updated.status = "COMPLETED"; // No, let user confirm
+      }
+
+      // Over end logic overrides pending action if not wicket/win?
+      // But if we need to select batter, that takes precedence.
 
       updated.strikerId = nextStriker || null;
       updated.nonStrikerId = nextNonStriker || null;
@@ -480,4 +650,42 @@ export function validateNextAction(snapshot: MatchSnapshot, type: ScoreEventType
 
 export function resolveMatchStatus(snapshot: MatchSnapshot): MatchStatus {
   return snapshot.status;
+}
+
+export function getPlayersPerSide(config: MatchConfig, battingTeamId: string | null | undefined): number {
+  const settingsPlayers = config.settings?.playersPerSide;
+  if (typeof settingsPlayers === "number" && settingsPlayers > 0) {
+    return settingsPlayers;
+  }
+
+  const teamAPlayers = typeof config.playersPerSideA === "number" && config.playersPerSideA > 0
+    ? config.playersPerSideA
+    : null;
+  const teamBPlayers = typeof config.playersPerSideB === "number" && config.playersPerSideB > 0
+    ? config.playersPerSideB
+    : null;
+
+  if (battingTeamId && config.teamAId && battingTeamId === config.teamAId && teamAPlayers) {
+    return teamAPlayers;
+  }
+  if (battingTeamId && config.teamBId && battingTeamId === config.teamBId && teamBPlayers) {
+    return teamBPlayers;
+  }
+
+  const fallback = teamAPlayers || teamBPlayers || 11;
+  return fallback < 2 ? 11 : fallback;
+}
+
+export function checkTermination(snapshot: MatchSnapshot, config: MatchConfig) {
+  const playersPerSide = getPlayersPerSide(config, snapshot.battingTeamId);
+  const wicketsLimit = Math.max(playersPerSide - 1, 1);
+  const isAllOut = snapshot.wickets >= wicketsLimit;
+  const isChased =
+    snapshot.target !== null &&
+    snapshot.target !== undefined &&
+    snapshot.target > 0 &&
+    snapshot.runs >= snapshot.target;
+  const isOversComplete = config.overs ? (snapshot.balls >= config.overs * 6) : false;
+
+  return { isAllOut, isChased, isOversComplete };
 }

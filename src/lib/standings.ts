@@ -1,7 +1,8 @@
 import type { Db } from "mongodb";
-import { formatOvers } from "@/lib/scoring/v2/engine";
+import { formatOvers, getPlayersPerSide } from "@/lib/scoring/v2/engine";
+import { getMatchConfig } from "@/lib/scoring/v2/match";
 import { getLatestSnapshotDoc, getSnapshotDoc } from "@/lib/scoring/v2/store";
-import type { MatchSnapshot } from "@/lib/scoring/v2/types";
+import type { MatchSettings, MatchSnapshot } from "@/lib/scoring/v2/types";
 
 export type TournamentPointsRules = {
   win: number;
@@ -61,6 +62,9 @@ type MatchDoc = {
   counts_for_standings?: boolean | null;
   innings1_batting_team_id?: string | null;
   result?: Record<string, any> | null;
+  settings?: MatchSettings;
+  squad_a_ids?: string[];
+  squad_b_ids?: string[];
 };
 
 type TournamentDoc = {
@@ -161,7 +165,8 @@ function resolveOversLimit(match: MatchDoc, rules: TournamentRules, latest?: Mat
 function resolveInningsStats(
   snapshot: MatchSnapshot | null,
   oversLimit: number | null,
-  rules: TournamentRules
+  rules: TournamentRules,
+  playersPerSide?: number | null
 ): { teamId: string; stats: TeamMatchStats } | null {
   if (!snapshot?.battingTeamId) return null;
   const runs = toNumber(snapshot.runs, 0);
@@ -169,7 +174,8 @@ function resolveInningsStats(
   const balls = toNumber(snapshot.balls, 0);
   const overs = snapshot.overs || formatOvers(balls);
   let ballsForNRR = balls;
-  if (rules.pointsRules.allOutCountsFullOvers && wickets >= 10 && oversLimit) {
+  const wicketsLimit = playersPerSide && playersPerSide > 1 ? playersPerSide - 1 : 10;
+  if (rules.pointsRules.allOutCountsFullOvers && wickets >= wicketsLimit && oversLimit) {
     ballsForNRR = oversLimit * 6;
   }
   return {
@@ -256,9 +262,12 @@ function resolveMatchResult(params: {
   latest: MatchSnapshot | null;
 }): MatchResult | null {
   const { match, rules, innings1, innings2, latest } = params;
+  const config = getMatchConfig(match);
   const oversLimit = resolveOversLimit(match, rules, latest);
-  const innings1Stats = resolveInningsStats(innings1, oversLimit, rules);
-  const innings2Stats = resolveInningsStats(innings2, oversLimit, rules);
+  const innings1Players = innings1 ? getPlayersPerSide(config, innings1.battingTeamId) : null;
+  const innings2Players = innings2 ? getPlayersPerSide(config, innings2.battingTeamId) : null;
+  const innings1Stats = resolveInningsStats(innings1, oversLimit, rules, innings1Players);
+  const innings2Stats = resolveInningsStats(innings2, oversLimit, rules, innings2Players);
 
   const teamStats: Record<string, TeamMatchStats> = {};
   if (innings1Stats) teamStats[innings1Stats.teamId] = innings1Stats.stats;
@@ -283,7 +292,8 @@ function resolveMatchResult(params: {
     if (runs2 > runs1) {
       resultType = "WIN";
       winnerTeamId = chasingTeamId;
-      marginWickets = Math.max(10 - innings2Stats.stats.wickets, 0);
+      const wicketsLimit = innings2Players && innings2Players > 1 ? innings2Players - 1 : 10;
+      marginWickets = Math.max(wicketsLimit - innings2Stats.stats.wickets, 0);
     } else if (runs2 < runs1) {
       resultType = "WIN";
       winnerTeamId = defendingTeamId;

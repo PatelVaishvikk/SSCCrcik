@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getDb } from "@/lib/mongo";
 import { getAdminSession } from "@/lib/admin-session";
 import { emitSnapshotUpdate } from "@/lib/socket";
-import { applyEvent } from "@/lib/scoring/v2/engine";
+import { applyEvent, getPlayersPerSide } from "@/lib/scoring/v2/engine";
 import { updateTournamentStandings } from "@/lib/standings";
 import { updateMatchStats } from "@/lib/stats-worker";
 import {
@@ -148,12 +148,14 @@ export async function POST(
   const teamMap = new Map(teams.map((team: any) => [team.team_id, team.name]));
   const battingName = nextSnapshot.battingTeamId ? teamMap.get(nextSnapshot.battingTeamId) : "";
   const bowlingName = nextSnapshot.bowlingTeamId ? teamMap.get(nextSnapshot.bowlingTeamId) : "";
+  const playersPerSide = getPlayersPerSide(config, nextSnapshot.battingTeamId);
   const resultSummary = buildResultSummary({
     battingTeamName: battingName,
     bowlingTeamName: bowlingName,
     runs: nextSnapshot.runs,
     wickets: nextSnapshot.wickets,
     target: nextSnapshot.target || null,
+    playersPerSide,
   });
 
   await db.collection("managed_matches").updateOne(

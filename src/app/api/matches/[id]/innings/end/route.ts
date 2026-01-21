@@ -143,7 +143,7 @@ export async function POST(
     { match_id: matchId },
     {
       $set: {
-        status: "innings_break",
+        status: (nextSnapshot.status || "innings_break").toLowerCase(),
         current_innings: inningsNo,
         updated_at: new Date(),
       },

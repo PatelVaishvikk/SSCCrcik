@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { getDb } from "@/lib/mongo";
 import { getAdminSession } from "@/lib/admin-session";
+import { getPlayersPerSide } from "@/lib/scoring/v2/engine";
+import { getMatchConfig } from "@/lib/scoring/v2/match";
 
 type InningsState = {
   batting_team_id: string;
@@ -105,8 +107,7 @@ export async function POST(request: Request) {
       { $set: { status: "live", updated_at: new Date() } }
     );
 
-    const { _id, ...payload } = liveDoc;
-    return NextResponse.json({ live: payload });
+    return NextResponse.json({ live: liveDoc });
   }
 
   if (action === "ball") {
@@ -289,6 +290,7 @@ export async function POST(request: Request) {
       });
 
       if (matchDoc) {
+        const matchConfig = getMatchConfig(matchDoc as any);
         const teamIds = [matchDoc.team_a_id, matchDoc.team_b_id].filter(Boolean);
         const teams = await db
           .collection("managed_teams")
@@ -315,7 +317,9 @@ export async function POST(request: Request) {
           const second = innings[1];
           if (second.runs > first.runs) {
             winnerTeamId = String(second.batting_team_id || "") || null;
-            const wicketsLeft = Math.max(0, 10 - (second.wickets || 0));
+            const playersPerSide = getPlayersPerSide(matchConfig, second.batting_team_id);
+            const wicketsLimit = Math.max(playersPerSide - 1, 0);
+            const wicketsLeft = Math.max(0, wicketsLimit - (second.wickets || 0));
             const winnerName =
               teamMap.get(winnerTeamId || "")?.name || "Team";
             resultSummary = `${winnerName} won by ${wicketsLeft} wickets`;

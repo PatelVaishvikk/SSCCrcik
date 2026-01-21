@@ -6,6 +6,8 @@ import { updateTournamentStandings } from "@/lib/standings";
 import { updateMatchStats } from "@/lib/stats-worker";
 import {
   applyEvent,
+  checkTermination,
+  getPlayersPerSide,
   getNextBallLabel,
   isLegalDelivery,
   validateNextAction,
@@ -68,6 +70,7 @@ async function appendSystemEvent(params: {
   snapshot: any;
   config: ReturnType<typeof getMatchConfig>;
   scorer: { id: string; name: string } | null;
+  playerNames?: Record<string, string>;
 }) {
   const seq = await nextMatchSeq(params.db, params.matchId);
   const doc: ScoreEventDoc = {
@@ -100,9 +103,12 @@ async function appendSystemEvent(params: {
     event,
     config: params.config,
     scorer: params.scorer || undefined,
+    playerNames: params.playerNames,
   });
   return { event, snapshot: nextSnapshot };
 }
+
+
 
 export async function POST(
   request: Request,
@@ -203,7 +209,9 @@ export async function POST(
   }
 
   const legalDelivery = isLegalDelivery(payload, config);
-  if (snapshot.wickets >= 10) {
+  const playersPerSide = getPlayersPerSide(config, snapshot.battingTeamId);
+  const wicketsLimit = Math.max(playersPerSide - 1, 1);
+  if (snapshot.wickets >= wicketsLimit) {
     return NextResponse.json({ error: "All wickets have fallen." }, { status: 409 });
   }
   if (legalDelivery && snapshot.balls >= config.overs * 6) {
@@ -245,8 +253,21 @@ export async function POST(
     idempotencyKey,
   };
 
+  const [meta, customPlayers] = await Promise.all([
+    db.collection("meta").findOne({ key: "global_player_database" }),
+    db.collection("custom_players").find({}).toArray()
+  ]);
+  const playerNames: Record<string, string> = {};
+  const globalPlayers = meta?.data?.players || {};
+  Object.values(globalPlayers).forEach((p: any) => {
+    if (p.id) playerNames[p.id] = p.name;
+  });
+  customPlayers.forEach((p: any) => {
+    if (p.player_id) playerNames[p.player_id] = p.name;
+  });
+
   const scorer = user ? { id: user.id, name: user.name } : null;
-  let nextSnapshot = applyEvent({ snapshot, event, config, scorer: scorer || undefined });
+  let nextSnapshot = applyEvent({ snapshot, event, config, scorer: scorer || undefined, playerNames });
 
   const overEnded = legalDelivery && (snapshot.balls + 1) % 6 === 0;
   if (overEnded) {
@@ -262,47 +283,54 @@ export async function POST(
       snapshot: nextSnapshot,
       config,
       scorer,
+      playerNames,
     });
     nextSnapshot = system.snapshot;
   }
 
-  const allOut = nextSnapshot.wickets >= 10;
-  const oversComplete = nextSnapshot.balls >= config.overs * 6;
-  const targetReached =
-    nextSnapshot.inningsNo === 2 &&
-    nextSnapshot.target !== null &&
-    nextSnapshot.target !== undefined &&
-    nextSnapshot.runs >= nextSnapshot.target;
+  // Use shared termination logic
+  const termination = checkTermination(nextSnapshot, config);
+  const { isAllOut: allOut, isOversComplete: oversComplete } = termination;
+  const isSecondInnings = nextSnapshot.inningsNo === 2;
+  const targetReached = isSecondInnings && termination.isChased;
 
-  if (allOut || oversComplete) {
+  if (allOut || oversComplete || targetReached) {
+    const inningsEndReason = targetReached
+      ? "target_chased"
+      : allOut
+        ? "all_out"
+        : "overs_complete";
     const system = await appendSystemEvent({
       db,
       matchId,
       inningsNo,
       type: "INNINGS_END",
-      payload: { reason: allOut ? "all_out" : "overs_complete" },
+      payload: { reason: inningsEndReason },
       over: eventDoc.over,
       ballInOver: eventDoc.ball_in_over,
       createdBy: session.sub,
       snapshot: nextSnapshot,
       config,
       scorer,
+      playerNames,
     });
     nextSnapshot = system.snapshot;
 
-    await db.collection("managed_matches").updateOne(
-      { match_id: matchId },
-      {
-        $set: {
-          status: "innings_break",
-          current_innings: inningsNo,
-          updated_at: new Date(),
-        },
-      }
-    );
+    if (!isSecondInnings) {
+      await db.collection("managed_matches").updateOne(
+        { match_id: matchId },
+        {
+          $set: {
+            status: "innings_break",
+            current_innings: inningsNo,
+            updated_at: new Date(),
+          },
+        }
+      );
+    }
   }
 
-  if (targetReached || (nextSnapshot.inningsNo === 2 && (allOut || oversComplete))) {
+  if (targetReached || (isSecondInnings && (allOut || oversComplete))) {
     const reason = targetReached
       ? "target_chased"
       : allOut
@@ -320,6 +348,7 @@ export async function POST(
       snapshot: nextSnapshot,
       config,
       scorer,
+      playerNames,
     });
     nextSnapshot = system.snapshot;
 
@@ -334,12 +363,14 @@ export async function POST(
     const bowlingName = nextSnapshot.bowlingTeamId
       ? teamMap.get(nextSnapshot.bowlingTeamId)
       : "";
+    const playersPerSide = getPlayersPerSide(config, nextSnapshot.battingTeamId);
     const resultSummary = buildResultSummary({
       battingTeamName: battingName,
       bowlingTeamName: bowlingName,
       runs: nextSnapshot.runs,
       wickets: nextSnapshot.wickets,
       target: nextSnapshot.target || null,
+      playersPerSide,
     });
 
     await db.collection("managed_matches").updateOne(
@@ -349,6 +380,8 @@ export async function POST(
           status: "completed",
           result_summary: resultSummary,
           updated_at: new Date(),
+          ...(nextSnapshot.winnerId ? { winner_id: nextSnapshot.winnerId } : {}),
+          ...(nextSnapshot.matchResult ? { result: nextSnapshot.matchResult } : {}),
         },
       }
     );

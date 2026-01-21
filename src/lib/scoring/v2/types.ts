@@ -95,11 +95,14 @@ export type BallSummary = {
   shotType?: string;
 };
 
+// Enhanced Commentary Types compatible with commentary.ts
 export type CommentaryEntry = {
   seq: number;
+  type: "RUN" | "WICKET" | "wicket" | "EXTRA" | "INFO" | "ball" | "milestone" | "boundary" | "over_summary" | "match_situation" | "pressure" | "partnership";
   text: string;
-  type: "RUN" | "EXTRA" | "WICKET" | "INFO";
   timestamp: string;
+  priority?: "low" | "medium" | "high";
+  highlight?: boolean;
 };
 
 export type InningsSummary = {
@@ -144,6 +147,9 @@ export type MatchSnapshot = {
   legalBallsInOver: number;
   overRuns: number;
   matchResult?: string | null;
+  winnerId?: string | null;
+  winMargin?: number | null;
+  winType?: "runs" | "wickets" | "tie" | "draw" | null;
   allowedActions?: {
     canScore: boolean;
     canUndo: boolean;
@@ -167,11 +173,16 @@ export type MatchSettings = {
   noConsecutiveBowler?: boolean;
   countWideAsBall?: boolean;
   countNoBallAsBall?: boolean;
+  playersPerSide?: number;
 };
 
 export type MatchConfig = {
   overs: number;
   settings: MatchSettings;
+  teamAId?: string;
+  teamBId?: string;
+  playersPerSideA?: number;
+  playersPerSideB?: number;
 };
 
 export type NextActionValidation = {

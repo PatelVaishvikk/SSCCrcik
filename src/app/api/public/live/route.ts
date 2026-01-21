@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
 import { getDb } from "@/lib/mongo";
+import { computeLiveAnalytics } from "@/lib/scoring/v2/analytics";
+import { computeShotAnalysis } from "@/lib/scoring/v2/shot-tracker";
+import type { BallSummary } from "@/lib/scoring/v2/types";
 
 export const dynamic = "force-dynamic";
 
@@ -149,15 +152,19 @@ function buildAnalysis(
   innings: Record<string, any>,
   allInnings: Array<Record<string, any>>,
   inningsIndex: number,
-  oversLimit: number | null
+  oversLimit: number | null,
+  snapshotEvents?: any[] // Optional: events or last balls
 ) {
-  const events = Array.isArray(innings.events) ? innings.events : [];
+  const events = Array.isArray(innings.events) ? innings.events : (snapshotEvents || []);
   const lastSix = summarizeLastBalls(events, 6);
   const maxBalls = oversLimit ? oversLimit * 6 : null;
   const inningsRuns = Number(innings.runs || 0);
   const inningsBalls = Number(innings.balls || 0);
+  const inningsWickets = Number(innings.wickets || 0);
+
   const projectedScore =
     maxBalls && inningsBalls > 0 ? Math.round((inningsRuns / inningsBalls) * maxBalls) : null;
+
   const previous = inningsIndex > 0 ? allInnings[inningsIndex - 1] : null;
   const targetRuns = previous ? Number(previous.runs || 0) + 1 : null;
   const runsNeeded =
@@ -171,7 +178,36 @@ function buildAnalysis(
         ? "0.00"
         : null;
 
+  // Adapt events/lastBalls to BallSummary for analytics
+  const recentBalls: BallSummary[] = events.slice(-12).map((e: any, i: number) => ({
+    seq: i,
+    over: 0, // Placeholder if unknown
+    ballInOver: 0,
+    label: e.label || (e.wicket ? "W" : String(e.runs || e.totalRuns || 0)),
+    isLegal: e.legalBall !== false && e.extraType !== "WD" && e.extraType !== "NB",
+    isWicket: Boolean(e.wicket || e.isWicket),
+    totalRuns: Number(e.runs || e.totalRuns || 0),
+    extraType: e.extraType || e.extra_type,
+    shotX: e.shotX,
+    shotY: e.shotY,
+    shotType: e.shotType,
+  }));
+
+  // Compute live analytics with available data
+  const liveAnalytics = computeLiveAnalytics({
+    runs: inningsRuns,
+    wickets: inningsWickets,
+    balls: inningsBalls,
+    target: targetRuns,
+    totalOvers: oversLimit || 20,
+    isSecondInnings: inningsIndex > 0,
+    recentBalls: recentBalls,
+    allBalls: recentBalls, // We might only have recent balls, but that's enough for some stats
+    runsPerOver: innings.runsPerOver || [],
+  });
+
   return {
+    runsPerOver: innings.runsPerOver || [],
     overs_limit: oversLimit,
     projected_score: projectedScore,
     last_six: lastSix,
@@ -179,6 +215,13 @@ function buildAnalysis(
     runs_needed: runsNeeded,
     balls_remaining: ballsRemaining,
     required_rate: requiredRate,
+
+    // Enhanced analytics
+    winProbability: liveAnalytics.winProbability,
+    pressureIndex: liveAnalytics.pressureIndex,
+    momentum: liveAnalytics.momentum,
+    projectedScoreEnhanced: liveAnalytics.projectedScore,
+    phaseAnalysis: liveAnalytics.phaseAnalysis,
   };
 }
 
@@ -280,7 +323,7 @@ export async function GET() {
   const db = await getDb();
   const snapshotDocs = await db
     .collection<SnapshotDoc>("match_snapshots")
-    .find({ "snapshot.status": "live" })
+    .find({ "snapshot.status": { $in: ["LIVE", "live", "INNINGS_BREAK", "innings_break"] } })
     .sort({ updated_at: -1, innings_no: -1 })
     .toArray();
 
@@ -316,9 +359,9 @@ export async function GET() {
       db.collection("custom_players").find({}).toArray(),
       previousQueries.length
         ? db
-            .collection<SnapshotDoc>("match_snapshots")
-            .find({ $or: previousQueries })
-            .toArray()
+          .collection<SnapshotDoc>("match_snapshots")
+          .find({ $or: previousQueries })
+          .toArray()
         : Promise.resolve([]),
     ]);
 
@@ -363,7 +406,8 @@ export async function GET() {
         { runs: snapshot.runs, balls: snapshot.balls, events: [] },
         previousDoc ? [{ runs: previousDoc.snapshot.runs }, { runs: snapshot.runs }] : [{ runs: snapshot.runs }],
         previousDoc ? 1 : 0,
-        oversLimit
+        oversLimit,
+        snapshot.lastBalls || []
       );
 
       analysis.last_six = lastSix;
@@ -371,10 +415,10 @@ export async function GET() {
       const lastBall = snapshot.lastBalls?.[snapshot.lastBalls.length - 1];
       const lastEvent = lastBall
         ? {
-            runs: Number(lastBall.totalRuns || 0),
-            wicket: Boolean(lastBall.isWicket),
-            extra_type: String(lastBall.extraType || ""),
-          }
+          runs: Number(lastBall.totalRuns || 0),
+          wicket: Boolean(lastBall.isWicket),
+          extra_type: String(lastBall.extraType || ""),
+        }
         : null;
 
       return {

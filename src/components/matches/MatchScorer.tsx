@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import styles from "./MatchScorer.module.css";
 import { useMatchSnapshot, type SnapshotResponse } from "@/lib/hooks/useMatchSnapshot";
-import { applyEvent, buildInitialSnapshot, getNextBallLabel, isLegalDelivery } from "@/lib/scoring/v2/engine";
+import { applyEvent, buildInitialSnapshot, checkTermination, getNextBallLabel, isLegalDelivery } from "@/lib/scoring/v2/engine";
 import { getMatchConfig } from "@/lib/scoring/v2/match";
 import { computeAllowedActions } from "@/lib/scoring/v2/permissions";
 import type {
@@ -105,7 +105,7 @@ async function postJson(url: string, body: Record<string, any>) {
 
 export default function MatchScorer({ matchId }: { matchId: string }) {
   const queryClient = useQueryClient();
-  const { data, isLoading, error } = useMatchSnapshot(matchId);
+  const { data, isLoading, error, refetch } = useMatchSnapshot(matchId);
   const queryKey = useMemo(() => ["matchSnapshot", matchId], [matchId]);
   const [context, setContext] = useState<MatchContext | null>(null);
   const [contextError, setContextError] = useState<string | null>(null);
@@ -310,14 +310,22 @@ export default function MatchScorer({ matchId }: { matchId: string }) {
 
   const resolveConfig = useCallback(
     (currentSnapshot: MatchSnapshot | null): MatchConfig => {
-      if (currentSnapshot) {
-        return {
+      const snapshotConfig = currentSnapshot
+        ? {
           overs: currentSnapshot.oversConfig,
           settings: currentSnapshot.settings || {},
+        }
+        : null;
+      if (context?.match) {
+        const matchConfig = getMatchConfig(context.match);
+        return {
+          ...matchConfig,
+          overs: snapshotConfig?.overs || matchConfig.overs,
+          settings: { ...matchConfig.settings, ...(snapshotConfig?.settings || {}) },
         };
       }
-      if (context?.match) {
-        return getMatchConfig(context.match);
+      if (snapshotConfig) {
+        return snapshotConfig;
       }
       return { overs: 0, settings: {} };
     },
@@ -370,15 +378,17 @@ export default function MatchScorer({ matchId }: { matchId: string }) {
                 scorer: prev.snapshot.scorer,
               });
             }
+            const termination = checkTermination(nextSnapshot, config);
             const isSecondInnings = nextSnapshot.inningsNo === 2;
-            const allOut = nextSnapshot.wickets >= 10;
-            const oversComplete = config.overs ? nextSnapshot.balls >= config.overs * 6 : false;
-            const targetReached =
-              isSecondInnings &&
-              nextSnapshot.target !== null &&
-              nextSnapshot.target !== undefined &&
-              nextSnapshot.runs >= nextSnapshot.target;
-            if (allOut || oversComplete) {
+            const allOut = termination.isAllOut;
+            const oversComplete = termination.isOversComplete;
+            const targetReached = isSecondInnings && termination.isChased;
+            if (allOut || oversComplete || targetReached) {
+              const inningsEndReason = targetReached
+                ? "target_chased"
+                : allOut
+                  ? "all_out"
+                  : "overs_complete";
               lastSeq += 1;
               nextSnapshot = applyEvent({
                 snapshot: nextSnapshot,
@@ -386,7 +396,7 @@ export default function MatchScorer({ matchId }: { matchId: string }) {
                   ...event,
                   seq: lastSeq,
                   type: "INNINGS_END",
-                  payload: { reason: allOut ? "all_out" : "overs_complete" },
+                  payload: { reason: inningsEndReason },
                 },
                 config,
                 scorer: prev.snapshot.scorer,
@@ -545,6 +555,10 @@ export default function MatchScorer({ matchId }: { matchId: string }) {
           await refreshQueueCounts();
           return { queued: true };
         }
+        if (error?.status === 409) {
+          refetch();
+          throw new Error("Syncing latest match data. Please retry.");
+        }
         throw error;
       }
     },
@@ -556,6 +570,7 @@ export default function MatchScorer({ matchId }: { matchId: string }) {
       snapshot?.version,
       pendingCount,
       failedCount,
+      refetch,
     ]
   );
 
@@ -841,6 +856,18 @@ export default function MatchScorer({ matchId }: { matchId: string }) {
     await submitAction(`/api/matches/${matchId}/innings/end`, body, optimistic || undefined);
   };
 
+  const handleEndMatch = async () => {
+    if (!confirm("Are you sure you want to END the match? This action cannot be undone.")) {
+      return;
+    }
+    try {
+      await submitAction(`/api/matches/${matchId}/end`, { reason: "manual" });
+    } catch (error) {
+       console.error(error);
+       alert("Failed to end match: " + (error as any).message);
+    }
+  };
+
   if (isLoading) {
     return <div className="card">Loading scorer console...</div>;
   }
@@ -1020,6 +1047,34 @@ export default function MatchScorer({ matchId }: { matchId: string }) {
         </div>
       </section>
 
+      <section style={{ marginTop: '1rem', padding: '1rem', background: 'rgba(0,0,0,0.2)', borderRadius: '8px' }}>
+         <h4 style={{ margin: '0 0 0.5rem 0', color: '#ccc', fontSize: '0.9rem', textTransform: 'uppercase' }}>Live Commentary</h4>
+         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '150px', overflowY: 'auto' }}>
+            {[...snapshot.commentaryTail].reverse().map((entry, idx) => (
+                <div 
+                    key={`${entry.seq}-${idx}`} 
+                    style={{ 
+                        display: 'flex', 
+                        gap: '0.5rem', 
+                        fontSize: '0.9rem',
+                        color: entry.highlight ? '#ffd700' : '#fff',
+                        fontWeight: entry.highlight ? 'bold' : 'normal',
+                        padding: '4px',
+                        background: entry.type === 'WICKET' || entry.type === 'wicket' ? 'rgba(255, 0, 0, 0.2)' : 'transparent',
+                        borderRadius: '4px'
+                    }}
+                >
+                    <span style={{ opacity: 0.6, fontSize: '0.8rem', minWidth: '40px' }}>
+                        {/* Try to extract over from text if possible, or just show seq/time? Time is verbose. Just text is fine. */}
+                        {entry.timestamp ? new Date(entry.timestamp).toLocaleTimeString([], { hour: '2-digit', minute:'2-digit', second:'2-digit' }) : ''}
+                    </span>
+                    <span>{entry.text}</span>
+                </div>
+            ))}
+            {!snapshot.commentaryTail.length && <div style={{ opacity: 0.5, fontStyle: 'italic' }}>No commentary yet.</div>}
+         </div>
+      </section>
+
       <section className={styles.actions}>
         <div className={styles.runGrid}>
           {RUN_BUTTONS.map((run) => (
@@ -1060,6 +1115,7 @@ export default function MatchScorer({ matchId }: { matchId: string }) {
             Undo
           </button>
           {role === "ADMIN" || role === "ORGANIZER" ? (
+            <>
             <button
               type="button"
               className={styles.actionButton}
@@ -1068,6 +1124,16 @@ export default function MatchScorer({ matchId }: { matchId: string }) {
             >
               End innings
             </button>
+            <button
+              type="button"
+              className={styles.actionButton}
+              onClick={handleEndMatch}
+              disabled={!allowedActions?.canEndMatch}
+              style={{ backgroundColor: "#2e2e2e", border: "1px solid #444" }} 
+            >
+              End Match
+            </button>
+            </>
           ) : null}
         </div>
       </section>
@@ -1110,6 +1176,23 @@ export default function MatchScorer({ matchId }: { matchId: string }) {
                 </button>
               ))}
             </div>
+            {availableBatters.length === 0 && (
+                 <div style={{ marginTop: '1rem', textAlign: 'center' }}>
+                    <p style={{ color: '#aaa', fontStyle: 'italic' }}>No batters available.</p>
+                    {allowedActions?.canEndInnings ? (
+                        <button 
+                            type="button" 
+                            className={styles.actionButton}
+                            onClick={handleEndInnings}
+                            style={{ marginTop: '0.5rem', background: '#d32f2f' }}
+                        >
+                            End Innings
+                        </button>
+                    ) : (
+                         <p style={{ fontSize: '0.8rem' }}>Waiting for resolution...</p>
+                    )}
+                 </div>
+            )}
           </div>
         </div>
       ) : null}

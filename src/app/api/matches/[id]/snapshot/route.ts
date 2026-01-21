@@ -25,7 +25,7 @@ export async function GET(
   const { searchParams } = new URL(request.url);
   const inningsNoRaw = searchParams.get("inningsNo");
   const inningsNo = inningsNoRaw ? Number(inningsNoRaw) : null;
-  if (inningsNoRaw && (!Number.isFinite(inningsNo) || inningsNo <= 0)) {
+  if (inningsNoRaw && (inningsNo === null || !Number.isFinite(inningsNo) || inningsNo <= 0)) {
     return NextResponse.json({ error: "Invalid inningsNo." }, { status: 400 });
   }
 
@@ -44,34 +44,40 @@ export async function GET(
   // This ensures past matches get the new analytics data.
   if (!doc.snapshot.runsPerOver) {
     console.log(`[AutoHeal] Rebuilding snapshot for ${matchId} to add runsPerOver...`);
-    const { getEventsForInnings, persistSnapshot } = await import("@/lib/scoring/v2/store");
+    const { getEventsForInnings, persistSnapshot, mapEventDoc } = await import("@/lib/scoring/v2/store");
     const { applyEvent, buildInitialSnapshot } = await import("@/lib/scoring/v2/engine");
-    const { mapEventDoc } = await import("@/lib/scoring/v2/store");
 
     // Fetch all events
     const events = await getEventsForInnings(db, matchId, doc.innings_no);
 
-    // Replay
+    // Replay with correct signature
     let freshSnapshot = buildInitialSnapshot({
       matchId,
       inningsNo: doc.innings_no,
-      overs: doc.snapshot.oversConfig || 0, // Fallback if needed, though initial snapshot usually takes config
+      strikerId: doc.snapshot.strikerId || "",
+      nonStrikerId: doc.snapshot.nonStrikerId || "",
+      bowlerId: doc.snapshot.bowlerId || "",
+      battingTeamId: doc.snapshot.battingTeamId || "",
+      bowlingTeamId: doc.snapshot.bowlingTeamId || "",
+      oversConfig: doc.snapshot.oversConfig || 20,
       settings: doc.snapshot.settings || {},
+      previousInnings: doc.snapshot.previousInnings || null,
+      target: doc.snapshot.target || null,
     });
-    // Wait, buildInitialSnapshot signature might be different. Let's check engine.ts export.
-    // Actually, checking engine.ts lines 55+: export function buildInitialSnapshot(params: MatchConfig & { matchId: string; ... })
-    // It requires config. We can try to reuse doc.snapshot's config.
 
-    freshSnapshot = buildInitialSnapshot({
-      matchId,
-      inningsNo: doc.innings_no,
+    const config = {
       overs: doc.snapshot.oversConfig || 20,
       settings: doc.snapshot.settings || {},
-    });
+    };
 
     for (const eventDoc of events) {
       const event = mapEventDoc(eventDoc);
-      freshSnapshot = applyEvent(freshSnapshot, event);
+      freshSnapshot = applyEvent({
+        snapshot: freshSnapshot,
+        event,
+        config,
+        scorer: doc.snapshot.scorer || null,
+      });
     }
 
     // Persist and use the fresh one

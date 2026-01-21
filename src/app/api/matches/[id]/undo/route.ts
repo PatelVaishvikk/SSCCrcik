@@ -179,7 +179,9 @@ export async function POST(
     previousInnings: snapshotDoc.snapshot.previousInnings || null,
     target: snapshotDoc.snapshot.target || null,
   });
-  if (lastUndoDoc?.seq) {\n    rebuilt.version = lastUndoDoc.seq;\n  }
+  if (lastUndoDoc?.seq) {
+    rebuilt.version = lastUndoDoc.seq;
+  }
 
   await persistSnapshot(db, {
     match_id: matchId,
